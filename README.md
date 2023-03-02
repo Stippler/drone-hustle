@@ -21,6 +21,9 @@ python -m drone.main
 
 ## MIP Formulation
 
+The optimization of the charging schedule of the drone is done by solving the underlying MIP.
+Decision Variables, Objective Function and the Constraints are given below.
+
 ### Decision Variables
 
 Let `n` be the number of drones, `m` be the number of packages, and `T` be the total number of time steps in the planning horizon.
