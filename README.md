@@ -1,3 +1,41 @@
+# Drone Scheduling
+
+## Reference Architecture
+
+ - IBM Platform
+ - Drones have "Missions"
+   - what route a drone should take
+   - what it should pickup
+   - ...
+ - Missions are assigned on L2
+ - Data is coming from L1
+   - Historical Data for future planning
+
+ - Planes cannot fly over Tibet
+
+ - Latency of 4G is maximum of 200 milliseconds (Sydney-Portugal)
+ - 
+
+## Related Work
+
+### The Drone Scheduling Problem: A Systematic State-of-the-Art Review
+
+#### Abbrevations
+ - unmanned aerial vehicle (UAV)
+ - unmanned aircraft system (UAS)
+ - remotely piloted aircraft (RPA)
+ - remotely piloted vehicle (RPV)
+
+#### Drone Sizes
+
+![drone size overview](images/drone-sizes.png)
+
+#### Papers
+ - last-mile delivery 10, 11
+    - Prime Air (Amazon) 12, 13
+    - Wing (Google) 11, 14
+ - literature surveys about drone operations, drone routing, etc. 2, 3, 19-23
+
 # Drone Optimization Problem
 
 This is a simple simulation of drones flying towards a cursor using Pygame.
