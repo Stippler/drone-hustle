@@ -1,79 +1,71 @@
-# Drone Scheduling
+# Battery Charging Service
 
-## Reference Architecture
+## Endpoints
 
- - IBM Platform
- - Drones have "Missions"
-   - what route a drone should take
-   - what it should pickup
-   - ...
- - Missions are assigned on L2
- - Data is coming from L1
-    - Historical Data for future planning
+### Charging Station 
 
- - Planes cannot fly over Tibet
-
- - Latency of 4G is maximum of 200 milliseconds (Sydney-Portugal)
-
- - Drone batteries are exchanged
-    - multiple batteries are charged at the same time
-    - for "charging" a battery can be switched
-    - can be only one charging station but more could be possible
-    - right now manually
-    - proposal is automatic
- - Beyond Vision APIs
-    - [Beyond Vision Website](https://beyond-vision.pt/)
-    - [Beyond Vision API](https://docs.beyond-vision.pt/bexstream/APIs.html)
-    - [Fullscreen Swagger API](https://bexstream-preprod.beyond-vision.pt/swagger/)
-
- - Time of Arrival is estimated
-    - off by something (really small)
-    - acceleration is ignored
- - Never tried more than 3/4 drones at the same time
-
-## Integration Plan of Grand Demo
-
- - Build Webapplication
-    - Use Docker
-    - [BDM Cloud stuff](https://www.ibm.com/docs/en/dmeu/2.0?topic=model-developing-business-data)
-
-## Related Work
-
-### The Drone Scheduling Problem: A Systematic State-of-the-Art Review
-
-#### Abbrevations
- - unmanned aerial vehicle (UAV)
- - unmanned aircraft system (UAS)
- - remotely piloted aircraft (RPA)
- - remotely piloted vehicle (RPV)
+This endpoint is used by a drone to request a charging station. It returns a JSON response indicating whether the request was accepted or not.
 
 
- - Math Definitions
-    - $C={1,...,N_C}$ set of launch points
-    - $K={1,...,N_k}$ set of available drones
-    - $I={1,...,N_I}$ set of customer nodes
-    - $p_k,k\in K$ operating cost of a drone associated with
-        - maintenance
-        - personel
-        - operation of control center
-        - deprecation cost
-        - etc. 26
+**Request:**
+```
+{
+    "drone_id": "string",
+}
+```
 
-#### Drone Sizes
+**Response:**
 
-![drone size overview](images/drone-sizes.png)
+```
+{
+    "success": true/false,
+    "message": "string"
+}
+```
+ 
+### Emergency Battery Endpoint
 
-#### Papers
- - last-mile delivery 10, 11
-    - Prime Air (Amazon) 12, 13
-    - Wing (Google) 11, 14
- - literature surveys about drone operations, drone routing, etc. 2, 3, 19-23
+This endpoint is used by a drone to request an emergency battery. It returns a JSON response indicating whether the request was accepted or not.
 
-#### Drone Scheduling Problem
+**Request**
 
- - launch points
- - flight time depens on battery capacity
-    - usually one hour
+```
+{
+    "drone_id": "string"
+}
+```
+
+**Response**
+
+```
+{
+    "success": true/false,
+    "message": "string"
+}
+```
+
+### Exchange Happened Endpoint
+
+This endpoint is used to indicate that a battery exchange has occurred. It takes in the ID of the battery that is gone and the ID and battery current of the new battery that was received.
+
+**Request**
+
+```
+{
+    "old_battery_id": "string",
+    "new_battery_id": "string",
+    "new_battery_current": "float"
+}
+```
+
+**Response**
+
+```
+{
+    "success": true,
+    "message": "Exchange recorded successfully"
+}
+```
 
 # Drone Optimization Problem
 
