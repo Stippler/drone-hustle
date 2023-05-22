@@ -2,7 +2,7 @@
 
 # Roadmap
 
- - [ ] REST API
+ - [x] REST API
  - [ ] Implement Scheduler
    - [ ] Charge most capacity first
    - [ ] Constraint, currently charging battery cannot be changed (but charging process can be paused)
