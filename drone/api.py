@@ -1,6 +1,9 @@
+from datetime import datetime
+from typing import List
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import json
 
 app = FastAPI()
@@ -13,44 +16,80 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define the WebSocket endpoint
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    while True:
-        # TODO: Implement logic to listen for updates and send data to client
-        pass
+class Battery(BaseModel):
+    battery_id: str
+    state_of_charge: float
+    capacity_kwh: float
+    max_power_watt: float
 
-# Define the price profile endpoint
-@app.get("/price-profile")
-async def get_price_profile():
-    # TODO: Implement logic to fetch the price profile and actual cost
-    price_profile = {
-        "start_time": "2022-03-17T00:00:00Z",
-        "end_time": "2022-03-17T23:59:59Z",
-        "price": 0.15
+    def __str__(self):
+        return f"Battery(battery_id={self.battery_id}, state_of_charge={self.state_of_charge}, capacity={self.capacity_kwh}, max_power={self.max_power_watt})"
+
+@app.post("/battery")
+def add_battery(battery: Battery):
+    print(f'POST /battery {battery}')
+    return {
+        "success": True,
+        "message": "battery added"
     }
-    actual_cost = 10.0
-    response_data = {"price_profile": price_profile, "actual_cost": actual_cost}
-    return JSONResponse(content=response_data)
 
-# Define the charging station endpoint
-@app.post("/charging-station")
-async def post_charging_station():
-    # TODO: Implement logic to handle charging station requests
-    response_data = {"success": True, "message": "Charging station request accepted"}
-    return JSONResponse(content=response_data)
+class ChargeRequest(BaseModel):
+    drone_id: str
+    state_of_charge: float
+    capacity_kwh: float
+    max_power_watt: float
+    delta_eta_seconds: int
+    force: bool
 
-# Define the emergency battery endpoint
-@app.post("/emergency-battery")
-async def post_emergency_battery():
-    # TODO: Implement logic to handle emergency battery requests
-    response_data = {"success": True, "message": "Emergency battery request accepted"}
-    return JSONResponse(content=response_data)
+    def __str__(self):
+        return f"ChargeRequest(drone_id={self.drone_id}, state_of_charge={self.state_of_charge}, capacity={self.capacity_kwh}, max_power={self.max_power_watt}, delta_eta={self.delta_eta_seconds})"
 
-# Define the exchange happened endpoint
-@app.post("/exchange-happened")
-async def post_exchange_happened():
-    # TODO: Implement logic to handle battery exchange events
-    response_data = {"success": True, "message": "Exchange recorded successfully"}
-    return JSONResponse(content=response_data)
+@app.post("/charge-request")
+def charge_request(charge_request: ChargeRequest):
+    print(f'POST /charge_request {charge_request}')
+    return {
+        "success": True,
+        "message": "charging request accepted"
+    }
+
+class ExchangeRequest(BaseModel):
+    old_battery_id: str
+    new_battery_id: str
+
+    def __str__(self):
+        return f"ExchangeRequest(old_battery_id={self.old_battery_id}, new_battery_id={self.new_battery_id})"
+
+@app.put("/exchange")
+def exchange_battery(exchange_request: ExchangeRequest):
+    print(f'PUT /exchange {exchange_request}')
+    return {
+        "success": True,
+        "message": "battery exchange completed"
+    }
+
+
+class DemandEstimation(BaseModel):
+    start: datetime
+    demand: List[float]
+    resolution_ms: int
+
+    def __str__(self):
+        return f"DemandEstimation(start={self.start}, demand={self.demand}, resolution_ms={self.resolution_ms})"
+
+@app.put("/demand-estimation")
+def demand_estimation(demand_estimation: DemandEstimation):
+    print(f'PUT /demand-estimation {demand_estimation}')
+    return
+
+class PriceProfile(BaseModel):
+    start: datetime
+    price: List[float]
+    resolution_ms: int
+
+    def __str__(self):
+        return f"PriceProfile(start={self.start}, price={self.price}, resolution_ms={self.resolution_ms})"
+
+@app.put("/price-profile")
+def price_profile(price_profile: PriceProfile):
+    print(f'PUT /price-profile {price_profile}')
+    return

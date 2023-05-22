@@ -1,8 +1,6 @@
 # Battery Charging Service
 
-   - Batteries can only be exchanged when they are full
-
-# ToDos
+# Roadmap
 
  - [ ] REST API
  - [ ] Implement Scheduler
@@ -30,20 +28,44 @@
  - Drone demand prediction
    - How often does a drone come per hour?
    - Is the probability evenly distributed?
+   - Is there an estimated variance too?
+   - Are the demand predictions fixed size or floating?
  - Who wants to write a paper?
-
 
 ## Endpoints
 
-### Charging Station 
+### POST /battery
+
+This endpoint is used by the simulation to add a battery to the optimization process.
+All batteries should be added at startup.
+
+**Request:**
+```
+{
+    "battery_id": "string",
+    "state_of_charge": float,
+    "capacity_kwh": float,
+    "max_power_watt": float
+}
+```
+
+
+### POST /charge-request
 
 This endpoint is used by a drone to request a charging station. It returns a JSON response indicating whether the request was accepted or not.
+Use `force` for a drone to request an emergency battery.
 
 
 **Request:**
 ```
 {
     "drone_id": "string",
+    "battery_id": "string",
+    "state_of_charge": float,
+    "capacity_kwh": float,
+    "max_power_watt": float,
+    "eta: timestamp,
+    "force": boolean
 }
 ```
 
@@ -55,39 +77,18 @@ This endpoint is used by a drone to request a charging station. It returns a JSO
     "message": "string"
 }
 ```
- 
-### Emergency Battery Endpoint
 
-This endpoint is used by a drone to request an emergency battery. It returns a JSON response indicating whether the request was accepted or not.
+### PUT /exchange
 
-**Request**
-
-```
-{
-    "drone_id": "string"
-}
-```
-
-**Response**
-
-```
-{
-    "success": true/false,
-    "message": "string"
-}
-```
-
-### Exchange Happened Endpoint
-
-This endpoint is used to indicate that a battery exchange has occurred. It takes in the ID of the battery that is gone and the ID and battery current of the new battery that was received.
+This endpoint is used to indicate that a battery exchange has occurred.
+It takes in the ID of the battery that is gone and the ID and battery current of the new battery that was received.
 
 **Request**
 
 ```
 {
     "old_battery_id": "string",
-    "new_battery_id": "string",
-    "new_battery_current": "float"
+    "new_battery_id": "string"
 }
 ```
 
@@ -100,7 +101,34 @@ This endpoint is used to indicate that a battery exchange has occurred. It takes
 }
 ```
 
-# Drone Optimization Problem
+### PUT /demand-estimation
+
+This endpoint is used to send a prognosis of the estimated demand of charged batteries in a certain interval.
+
+**Request**
+```
+{
+    start: timestamp,
+    demand: List[float],
+    resolution_ms: int
+}
+```
+
+### PUT /price-profile
+
+This endpoint is used to send a prognosis of the price profile of the electricity.
+
+**Request**
+```
+{
+    start: timestamp,
+    price: List[float],
+    resolution_ms: int
+}
+```
+
+
+# Drone Simulator
 
 This is a simple simulation of drones flying towards a cursor using Pygame.
 The simulation includes a `Drone` class with 2D coordinates, velocity, and acceleration vectors, and methods for updating and drawing the drones on the screen.
@@ -111,63 +139,11 @@ The simulation includes a `Drone` class with 2D coordinates, velocity, and accel
  - Pygame
  - Numpy
 
-TODO: requirements.txt will follow...
-
 ## Usage
 
 Start with:
 
 ```
 python -m drone.main
-```
-
-## MIP Formulation
-
-The optimization of the charging schedule of the drone is done by solving the underlying MIP.
-Decision Variables, Objective Function and the Constraints are given below.
-
-### Decision Variables
-
-Let `n` be the number of drones, `m` be the number of packages, and `T` be the total number of time steps in the planning horizon.
-
-1. `c[i][t]`: a binary variable that equals 1 if drone i is charging at time step t, and 0 otherwise.
-2. `p[k][t]`: a binary variable that equals 1 if package k is on a drone at time step t, and 0 otherwise.
-3. `d[i][j][t]`: a binary variable that equals 1 if drone i is delivering a package to location j at time step t, and 0 otherwise.
-
-### Objective Function
-
-```
-minimize sum(i=1 to n, t=1 to T) (1 - c[i][t])
-```
-
-### Constraints
-
- - Each drone can only carry one package at a time.
-
-```
-sum(k=1 to m, t=1 to T) p[k][t] <= 1, for all i
-```
-
- - Each package must be picked up at its source location.
-
-```
-sum(i=1 to n, t=1 to T) p[k][t] = 1, for all k
-```
-
- - Each package must be delivered to its destination location.
-
-```
-sum(i=1 to n, t=1 to T) d[i][j][t] = 1, for all j
-```
-
- - Each drone can only pick up a package if it is at the source location of that package.
-```
-p[k][t] <= 1 - sum(i!=j, t=1 to T) d[i][source[k]][t], for all k, t
-```
-
- - Each drone can only deliver a package if it is carrying that package.
-
-```
-d[i][j][t] <= p[k][t], for all i, j, k, t
 ```
 
