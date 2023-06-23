@@ -5,11 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Module",
+            "type": "python",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "drone.api:app",
+                "--reload"
+            ],
+            "justMyCode": true
+        },
+        {
             "name": "confidence estimator",
             "type": "python",
             "request": "launch",
             "module": "confidence_estimator",
             "justMyCode": true
-        }
+        },
     ]
 }
