@@ -118,6 +118,7 @@ class DemandEstimation(BaseModel):
          description="""
     This endpoint is used to send a prognosis of the estimated demand of charged batteries of a day. 
     The demand should be a list of events in seconds when batteries will be exchanged relative to midnight.
+    Event time can only be within 24 hours.
     """)
 def demand_estimation(demand_estimation: DemandEstimation):
     simulation.set_demand(demand_estimation)
@@ -131,7 +132,7 @@ class PriceProfile(BaseModel):
         25.02, 18.29, 16.04, 14.6, 14.95, 14.5, 10.76, 12.01, 
         12.39, 14.04, 14.68, 16.08, 16.08, 16.05, 16.04, 16.1,
         23.93, 26.9, 26.36, 23.98, 16.09, 14.08, 12.44, 0.04
-    ], description="List of prices at various intervals.")
+    ], description="List of prices at various intervals, must be at most 24 hours long.")
     resolution_s: int = Field(
         example=3600, description="Resolution of price profile in seconds.")
 
@@ -184,7 +185,6 @@ def schedule():
         "resolution_seconds": config.resolution,
         "schedules": list([[int(e) for e in schedule] for schedule in simulation.get_schedules()])
     }
-    print(schedule)
     return {
         "success": True,
         "schedules": schedule

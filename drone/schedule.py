@@ -7,13 +7,12 @@ from drone.types import ChargingBatteries, FinishedBatteries, WaitingBatteries
 
 logger = logging.getLogger(__name__)
 
-# TODO: rename Scheduler to schedule and make immutable
 class Schedule:
 
     def __init__(self, slots: int = config.slot_count):
         self.schedule: np.ndarray = np.ones((1, slots), int)*-1
-        self.demand: np.ndarray = np.zeros((1, slots), int)
-        self.charging_constraints = np.ones(self.schedule.shape, int)
+        self.demand: np.ndarray = np.zeros(self.schedule.shape, int)
+        self.charging_constraints = np.ones(self.schedule.shape, dtype=bool)
 
     def update_schedule(self,
                         waiting_batteries: WaitingBatteries,
@@ -22,12 +21,9 @@ class Schedule:
                         demand_estimation,
                         charging_constraints) -> WaitingBatteries:
 
+        assert np.all(self.schedule.shape==charging_constraints.shape)
         self.demand_estimation = demand_estimation
-        self.charging_constraints = np.ones(self.schedule.shape, bool)
-        # TODO: check somewhere if charging constraint array is too long (longer than schedule)
-        self.charging_constraints[0:charging_constraints.shape[0], :] = charging_constraints
-        # print('charging constraints: ', self.charging_constraints[0, :90])
-        # print('demand estimation: ', self.demand_estimation[:90])
+        self.charging_constraints = charging_constraints
 
         waiting_batteries.sort(key=lambda battery: battery.soc, reverse=True)
         self.schedule: np.ndarray = np.ones(self.schedule.shape, int)*-1

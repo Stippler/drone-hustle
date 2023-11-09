@@ -25,7 +25,7 @@ def convert_price_profile(profile) -> np.ndarray:
     """
     price_profile_array = np.zeros(config.slot_count, dtype=float)
 
-    profile_time_span_s = profile.resolution_ms
+    profile_time_span_s = profile.resolution_s
     slot_time_span_s = config.resolution
 
     profile_index = 0
@@ -73,7 +73,6 @@ class Simulation:
         self.waiting_batteries: List[Battery] = []
         self.charging_batteries: List[Battery] = []
         self.finished_batteries: List[Battery] = []
-        self.demand_event_list = [i*60*60 for i in range(24)]
 
         self.requests = {}
         self.charger_count = charger_count
@@ -82,8 +81,10 @@ class Simulation:
         self.id_counter = 0
 
         self.constraints = np.zeros((1, config.slot_count), dtype=bool)
+
+        self.demand_event_list = [i*60*60 for i in range(24)]
         self.price_profile = np.zeros(config.slot_count, dtype=float)
-        
+
         self.schedule = Schedule()
     
     def get_batteries(self):
@@ -138,7 +139,10 @@ class Simulation:
         self.create_schedule(self.current_time, 0)
     
     def set_price_profile(self, price_profile):
-        self.price_profile = convert_price_profile(price_profile)
+        with self.lock:
+            price_profile = convert_price_profile(price_profile)
+            price_profile = np.repeat(price_profile, int(config.slot_count/len(price_profile)))
+            self.price_profile = price_profile
         self.create_schedule(self.current_time, 0)
     
     def get_price_profile(self):
@@ -219,11 +223,18 @@ class Simulation:
         current_datetime = datetime.fromtimestamp(current_time)
         seconds_since_midnight = (current_datetime.hour * 3600) + (current_datetime.minute * 60) + current_datetime.second
 
-        # self.constraints = np.zeros((1, config.slot_count), dtype=bool)
-        # self.price_profile = np.zeros(config.slot_count, dtype=float)
+        # TODO: repeat demand_list x times
+        # create entire demand_array
+        demand_list = copy.copy(self.demand_event_list) # [demand-seconds_since_midnight for demand in self.demand_event_list if demand>=seconds_since_midnight]
+                      # [demand-seconds_since_midnight+24*60*60 for demand in self.demand_event_list if demand<seconds_since_midnight]
+
+        days = int(config.slot_count/config.resolution/24)
+        for i in range(1, days):
+            demand_list += [event+i*24*60*60 for event in demand_list]
 
         demand_list = [demand-seconds_since_midnight for demand in self.demand_event_list if demand>=seconds_since_midnight]+\
-                      [demand-seconds_since_midnight+24*60*60 for demand in self.demand_event_list if demand<seconds_since_midnight]
+                      [demand-seconds_since_midnight+days*24*60*60 for demand in self.demand_event_list if demand<seconds_since_midnight]
+
         for demand in demand_list[:self.total_batteries()]:
             demand_slot_index = int(demand/config.resolution)
             if demand_slot_index<config.slot_count:
@@ -236,14 +247,17 @@ class Simulation:
         # cumsum after 2 timesteps without exchange: [-1,-1,-1, 0]
         # cumsum after 2 timesteps with    exchange: [ 0, 0, 0, 1]
 
+        curr_time_index = int(seconds_since_midnight/config.resolution)
+        # demand_array = np.concatenate([demand_array[curr_time_index:], demand_array[:curr_time_index]])
         demand_array = np.array(np.cumsum(demand_array)-len(self.requests)-len(self.finished_batteries))
-        constraint_idx = int(seconds_since_midnight/config.resolution)
+        price_profile = np.concatenate([self.price_profile[curr_time_index:], self.price_profile[:curr_time_index]])
+
         works = self.schedule.update_schedule(
             self.waiting_batteries,
             self.charging_batteries,
             self.finished_batteries,
             demand_array,
-            np.concatenate([self.constraints[:, constraint_idx:], self.constraints[:, :constraint_idx]], axis=1)
+            self.constraints
         )
 
         if not works:
@@ -253,14 +267,14 @@ class Simulation:
                 self.charging_batteries,
                 self.finished_batteries,
                 demand_array,
-                np.concatenate([self.constraints[:, constraint_idx:], self.constraints[:, :constraint_idx]], axis=1)
+                self.constraints
             )
             if not works:
                 logger.warn('cannot generate a feasible schedule')
                 return False
 
         # Optimize as long as possible:
-        sorted_indices = np.argsort(self.price_profile)
+        sorted_indices = np.argsort(price_profile)
         idx = 0
         while time()-tik<time_budget and idx<len(sorted_indices):
             self.constraints[0, sorted_indices[idx]]=True
@@ -269,7 +283,7 @@ class Simulation:
                 self.charging_batteries,
                 self.finished_batteries,
                 demand_array,
-                np.concatenate([self.constraints[:, constraint_idx:], self.constraints[:, :constraint_idx]], axis=1)
+                self.constraints
             )
             if not works:
                 self.constraints[0, sorted_indices[idx]]=False
@@ -285,23 +299,13 @@ class Simulation:
         return total_batteries
 
     def start(self):
-        index = 0
-        index_time = time()
+        self.current_time = 0
         while True:
-            current = time()
-            last = current
-            self.current_time = index_time
-
-            # current_datetime = datetime.fromtimestamp(current)
-            # seconds_since_midnight = (current_datetime.hour * 3600) + (current_datetime.minute * 60) + current_datetime.second
-            # curr_slot = int(seconds_since_midnight/config.resolution)
-
-            # while config.resolution < event_time:
-            # fire event
+            start = time()
             with self.lock:
                 # swap fully charged batteries to finished
                 swap_batteries = []
-
+                
                 for charging_battery in self.charging_batteries:
                     if not self.constraints[0, 0]:
                         if charging_battery.update():
@@ -318,26 +322,25 @@ class Simulation:
                 for waiting_battery in swap_batteries:
                     self.charging_batteries.append(waiting_battery)
                     self.waiting_batteries.remove(waiting_battery)
-                
-                # 
 
-                current = time()
+                self.constraints = np.roll(self.constraints, -1, axis=1)
+                self.constraints[0, -1] = False
+
                 # remaining time 
-                remaining = config.resolution/self.time_factor-(current-last)
-                self.create_schedule(last, remaining)
+                remaining = config.resolution/config.simulation_time_factor-(time()-start)
+                self.create_schedule(self.current_time, remaining)
                 # Log the schedule
                 formatted_schedule = \
                     f'Waiting Batteries: {len(self.waiting_batteries)}, '+\
                     f'Finished Batteries: {len(self.finished_batteries)}, '+\
                     f'Requests: {len(self.requests)} '+self.schedule.format_schedule()
-                print(formatted_schedule)
                 if formatted_schedule:
                     logger.info(formatted_schedule)
 
-            current = time()
-            time_to_sleep = config.resolution/self.time_factor-(current-last)
-            if time_to_sleep>0:
-                sleep(time_to_sleep)
+            remaining = config.resolution/config.simulation_time_factor-(time()-start)
+            if remaining>0:
+                sleep(remaining)
             else:
                 print('warning: simulation is too slow...')
+            self.current_time += config.resolution
             
