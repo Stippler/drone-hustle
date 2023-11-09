@@ -42,8 +42,18 @@ class Battery:
     def remaining_timesteps(self, charging_constraints: np.ndarray):
         # TODO: add charging_constraints for timesteps
         remaining_charge = 1-self.soc
-        timesteps = ceil(remaining_charge/self.soc_delta_per_timestep)
-        return timesteps
+        remaining_timesteps = ceil(remaining_charge/self.soc_delta_per_timestep)
+        needed_timesteps = remaining_timesteps
+        i = 0
+        while remaining_timesteps>0:
+            if needed_timesteps>charging_constraints.shape[1]:
+                return -1
+            available_timesteps = np.sum(charging_constraints[0, i:needed_timesteps]==0)
+            # print(i, needed_timesteps, remaining_timesteps, extra_timesteps, len(charging_constraints))
+            i = needed_timesteps
+            remaining_timesteps -= available_timesteps
+            needed_timesteps += remaining_timesteps
+        return needed_timesteps
     
     def __str__(self):
         return f"B {self.id}: {self.soc} {self.capacity} {self.actual_power} {self.max_power} {self.soc_delta_per_timestep}"
