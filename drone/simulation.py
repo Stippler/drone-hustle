@@ -274,21 +274,21 @@ class Simulation:
                 return False
 
         # Optimize as long as possible:
-        sorted_indices = np.argsort(price_profile)
-        idx = 0
-        while time()-tik<time_budget and idx<len(sorted_indices):
-            self.constraints[0, sorted_indices[idx]]=True
-            works = self.schedule.update_schedule(
-                self.waiting_batteries,
-                self.charging_batteries,
-                self.finished_batteries,
-                demand_array,
-                self.constraints
-            )
-            if not works:
-                self.constraints[0, sorted_indices[idx]]=False
-                break
-            idx+=1
+        # sorted_indices = np.argsort(price_profile)
+        # idx = 0
+        # while time()-tik<time_budget and idx<len(sorted_indices):
+        #     self.constraints[0, sorted_indices[idx]]=True
+        #     works = self.schedule.update_schedule(
+        #         self.waiting_batteries,
+        #         self.charging_batteries,
+        #         self.finished_batteries,
+        #         demand_array,
+        #         self.constraints
+        #     )
+        #     if not works:
+        #         self.constraints[0, sorted_indices[idx]]=False
+        #         break
+        #     idx+=1
         return True
 
     def total_batteries(self):
