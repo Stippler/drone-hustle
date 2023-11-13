@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from drone.simulation import convert_price_profile
 import logging
 from typing import List
@@ -196,19 +198,23 @@ def schedule():
          description="""
     This endpoint returns all necessary information for the visualisation of the simulation, namely: 
     <ul>
+        <li>current simulation time as string</li>
         <li>optimized schedule including temporal resolution (in s), load curve (in W) and cost curve (in EUR)</li>
         <li>unoptimized schedule including temporal resolution (in s), load curve (in W) and cost curve (in EUR)</li>
         <li>price profile</li>
         <li>{waiting, charging, finished} batteries</li>
+        <li>demand event list (points in time when demand is expected)</li>
         <li>prognosis of batteries with demand estimation</li>
         <li>pending charge requests</li>
     </ul>
     """)
 def visualisation():
+    current_time = str(timedelta(seconds=simulation.current_time))
     optimized_schedule = simulation.rest_get_optimized_schedule()
     unoptimized_schedule = simulation.rest_get_unoptimized_schedule()
     price_profile = simulation.price_profile.tolist()
     batteries = simulation.get_batteries()
+    demand_events = simulation.demand_event_list
     battery_prognosis = {
         "waiting_battery_prognosis": simulation.prognose_waiting_batteries().tolist(),
         "finished_battery_prognosis": simulation.prognose_finished_batteries().tolist()
@@ -216,10 +222,12 @@ def visualisation():
     pending_requests = simulation.requests
 
     return {
+        "current_time": current_time,
         "optimized_schedule": optimized_schedule,
         "unoptimized_schedule": unoptimized_schedule,
         "price_profile": price_profile,
         "batteries": batteries,
+        "demand_events": demand_events,
         "battery_prognosis": battery_prognosis,
         "pending_charge_requests": pending_requests
     }
