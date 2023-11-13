@@ -3,7 +3,7 @@ from threading import Lock
 from time import time, sleep
 
 from drone.battery import Battery
-from drone import config
+import drone.config as config
 from datetime import datetime, timedelta
 import copy
 
@@ -217,16 +217,14 @@ class Simulation:
         seconds_since_midnight = (current_datetime.hour * 3600) + (
                 current_datetime.minute * 60) + current_datetime.second
 
-        # TODO: repeat demand_list x times
         # create entire demand_array
-        demand_list = copy.copy(
-            self.demand_event_list)  # [demand-seconds_since_midnight for demand in self.demand_event_list if demand>=seconds_since_midnight]
-        # [demand-seconds_since_midnight+24*60*60 for demand in self.demand_event_list if demand<seconds_since_midnight]
+        demand_list = copy.copy(self.demand_event_list)
 
         days = int(config.slot_count / config.resolution / 24)
         for i in range(1, days):
             demand_list += [event + i * 24 * 60 * 60 for event in demand_list]
 
+        # break demand_list at current time, append at the end
         demand_list = [demand - seconds_since_midnight for demand in self.demand_event_list if
                        demand >= seconds_since_midnight] + \
                       [demand - seconds_since_midnight + days * 24 * 60 * 60 for demand in self.demand_event_list if
@@ -237,15 +235,7 @@ class Simulation:
             if demand_slot_index < config.slot_count:
                 demand_array[demand_slot_index] += 1
 
-        # TODO: what happens when a drone does not get the battery in time?
-        # demand_array:   [ 0, 0, 2, 0, 0, 0, 1]
-        # cumsum:         [ 0, 0, 2, 2, 2, 2, 3]
-        # after requests: [-1,-1, 1, 1, 1, 1, 2]
-        # cumsum after 2 timesteps without exchange: [-1,-1,-1, 0]
-        # cumsum after 2 timesteps with    exchange: [ 0, 0, 0, 1]
-
         curr_time_index = int(seconds_since_midnight / config.resolution)
-        # demand_array = np.concatenate([demand_array[curr_time_index:], demand_array[:curr_time_index]])
         demand_array = np.array(np.cumsum(demand_array) - len(self.requests) - len(self.finished_batteries))
         price_profile = np.concatenate([self.price_profile[curr_time_index:], self.price_profile[:curr_time_index]])
 
