@@ -120,8 +120,6 @@ class Schedule:
                 battery_id = schedule[0][i]
                 charging_battery = next((battery for battery in batteries if battery.id == battery_id), None)
                 load_curve[0][i] = charging_battery.actual_power
-            print(f'Optimized? {optimized}, schedule entry: {schedule[0][i]}, '
-                  f'charging constraint: {self.charging_constraints[0][i]} --> load curve entry: {load_curve[0][i]}')
 
         return load_curve
 
