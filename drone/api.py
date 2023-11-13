@@ -176,7 +176,7 @@ def batteries():
 
 
 @app.get("/schedules",
-         summary="current charging schedule",
+         summary="Current charging schedule",
          description="""
     This endpoint returns the current charging schedules.
     """)
@@ -188,4 +188,38 @@ def schedule():
     return {
         "success": True,
         "schedules": schedule
+    }
+
+
+@app.get("/visualisation",
+         summary="All necessary information for visualisation",
+         description="""
+    This endpoint returns all necessary information for the visualisation of the simulation, namely: 
+    <ul>
+        <li>optimized schedule including temporal resolution (in s), load curve (in W) and cost curve (in EUR)</li>
+        <li>unoptimized schedule including temporal resolution (in s), load curve (in W) and cost curve (in EUR)</li>
+        <li>price profile</li>
+        <li>{waiting, charging, finished} batteries</li>
+        <li>prognosis of batteries with demand estimation</li>
+        <li>pending charge requests</li>
+    </ul>
+    """)
+def visualisation():
+    optimized_schedule = simulation.rest_get_optimized_schedule()
+    unoptimized_schedule = simulation.rest_get_unoptimized_schedule()
+    price_profile = simulation.price_profile.tolist()
+    batteries = simulation.get_batteries()
+    battery_prognosis = {
+        "waiting_battery_prognosis": simulation.prognose_waiting_batteries().tolist(),
+        "finished_battery_prognosis": simulation.prognose_finished_batteries().tolist()
+    }
+    pending_requests = simulation.requests
+
+    return {
+        "optimized_schedule": optimized_schedule,
+        "unoptimized_schedule": unoptimized_schedule,
+        "price_profile": price_profile,
+        "batteries": batteries,
+        "battery_prognosis": battery_prognosis,
+        "pending_charge_requests": pending_requests
     }

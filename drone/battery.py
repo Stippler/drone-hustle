@@ -25,9 +25,9 @@ class Battery:
         """
         if charging_power > self.max_power:
             raise ValueError(
-                f'charging poer {charging_power} is out of bounds {self.max_power}')
+                f'charging power {charging_power} is out of bounds {self.max_power}')
         self.actual_power = charging_power
-        self.soc_delta_per_timestep = charging_power*(self.resolution/3600)/(self.capacity*1000)
+        self.soc_delta_per_timestep = charging_power * (self.resolution / 3600) / (self.capacity * 1000)
 
     def update(self):
         """
@@ -40,20 +40,30 @@ class Battery:
         return False
 
     def remaining_timesteps(self, charging_constraints: np.ndarray):
-        # TODO: add charging_constraints for timesteps
-        remaining_charge = 1-self.soc
-        remaining_timesteps = ceil(remaining_charge/self.soc_delta_per_timestep)
-        needed_timesteps = remaining_timesteps
-        i = 0
-        while remaining_timesteps>0:
-            if needed_timesteps>charging_constraints.shape[1]:
-                return -1
-            available_timesteps = np.sum(charging_constraints[0, i:needed_timesteps]==0)
-            # print(i, needed_timesteps, remaining_timesteps, extra_timesteps, len(charging_constraints))
-            i = needed_timesteps
-            remaining_timesteps -= available_timesteps
-            needed_timesteps += remaining_timesteps
-        return needed_timesteps
-    
+        """
+        Calculates the number of remaining time steps based on charging constraints.
+
+        Parameters:
+        charging_constraints (np.ndarray): An array representing charging constraints.
+
+        Returns:
+        int: The number of remaining time steps if constraints allow charging within those steps.
+             Returns -1 if constraints exceed the available number of time steps.
+        """
+        needed_charge = 1 - self.soc  # Calculate the remaining charge
+        minimum_needed_time_steps = ceil(needed_charge / self.soc_delta_per_timestep)  # Calculate remaining time steps
+
+        # Count the number of time steps needed to get the minimum number of unconstrained charging time steps
+        count_false = 0
+        for i, val in enumerate(charging_constraints[0]):
+            if not val:
+                count_false += 1
+            if count_false >= minimum_needed_time_steps:
+                return i + 1  # returning the number of indices including the current one
+
+        return -1  # Return -1 if needed steps are not available
+
     def __str__(self):
-        return f"B {self.id}: {self.soc} {self.capacity} {self.actual_power} {self.max_power} {self.soc_delta_per_timestep}"
+        return f"B {self.id}: soc {self.soc*100}%, capacity {self.capacity}kWh, " \
+               f"charging power {self.actual_power}W/{self.max_power}W, " \
+               f"soc increase per timestep {self.soc_delta_per_timestep}"
