@@ -1,7 +1,8 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from drone.simulation import convert_price_profile
 import logging
+import copy
 from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 import drone.config as config
 from threading import Thread
 from drone.simulation import Simulation
+import numpy as np
 
 logging.basicConfig(level=logging.INFO)
 
@@ -177,6 +179,8 @@ def batteries():
     }
 
 
+
+
 @app.get("/schedules",
          summary="Current charging schedule",
          description="""
@@ -192,6 +196,17 @@ def schedule():
         "schedules": schedule
     }
 
+class SimulationConfig(BaseModel):
+    start_time: int = Field(example=0, description="seconds since midnight")
+
+@app.post("/restart",
+          summary="Restart Simulation",
+          description="This endpoint restarts the entire simulation")
+def restart(simulation_config: SimulationConfig):
+    simulation.restart(simulation_config.start_time)
+    return {
+        "success": True,
+    }
 
 @app.get("/visualisation",
          summary="All necessary information for visualisation",
@@ -212,9 +227,33 @@ def visualisation():
     current_time = str(timedelta(seconds=simulation.current_time))
     optimized_schedule = simulation.rest_get_optimized_schedule()
     unoptimized_schedule = simulation.rest_get_unoptimized_schedule()
-    price_profile = simulation.price_profile.tolist()
+
+
     batteries = simulation.get_batteries()
-    demand_events = simulation.demand_event_list
+    # demand_events = simulation.demand_event_list
+
+    current_datetime = datetime.fromtimestamp(simulation.current_time)
+    seconds_since_midnight = (current_datetime.hour * 3600) + (
+            current_datetime.minute * 60) + current_datetime.second
+
+    # create entire demand_array
+    demand_list = copy.copy(simulation.demand_event_list)
+
+    days = int(config.slot_count / config.resolution / 24)
+    for i in range(1, days):
+        demand_list += [event + i * 24 * 60 * 60 for event in demand_list]
+
+    # break demand_list at current time, append at the end
+    demand_list = [demand - seconds_since_midnight for demand in simulation.demand_event_list if
+                   demand >= seconds_since_midnight] + \
+                  [demand - seconds_since_midnight + days * 24 * 60 * 60 for demand in simulation.demand_event_list if
+                   demand < seconds_since_midnight]
+
+    curr_time_index = int(seconds_since_midnight / config.resolution)
+    price_profile = np.concatenate([simulation.price_profile[curr_time_index:], simulation.price_profile[:curr_time_index]])
+    price_profile = price_profile.tolist()
+
+    # TODO: update demand_vents
     battery_prognosis = {
         "waiting_battery_prognosis": simulation.prognose_waiting_batteries().tolist(),
         "finished_battery_prognosis": simulation.prognose_finished_batteries().tolist()
@@ -227,7 +266,7 @@ def visualisation():
         "unoptimized_schedule": unoptimized_schedule,
         "price_profile": price_profile,
         "batteries": batteries,
-        "demand_events": demand_events,
+        "demand_events": demand_list,
         "battery_prognosis": battery_prognosis,
         "pending_charge_requests": pending_requests
     }

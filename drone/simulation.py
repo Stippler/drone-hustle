@@ -84,11 +84,24 @@ class Simulation:
         self.id_counter = 0
 
         self.constraints = np.zeros((1, config.slot_count), dtype=bool)
-
         self.demand_event_list = [i * 60 * 60 for i in range(24)]
         self.price_profile = np.zeros(config.slot_count, dtype=float)
 
         self.schedule = Schedule()
+
+    def restart(self, start_time):
+        with self.lock:
+            self.current_time = start_time
+            self.waiting_batteries.clear()
+            self.charging_batteries.clear()
+            self.finished_batteries.clear()
+            self.requests.clear()
+            self.constraints = np.zeros((1, config.slot_count), dtype=bool)
+            self.demand_event_list = [i * 60 * 60 for i in range(24)]
+            self.price_profile = np.zeros(config.slot_count, dtype=float)
+            self.schedule = Schedule()
+            self.id_counter = 0
+
 
     def get_batteries(self):
         with self.lock:
@@ -367,7 +380,7 @@ class Simulation:
         return cost_curve
 
     def start(self):
-        self.current_time = 30 * 60
+        self.current_time = 0
         while True:
             start = time()
 
