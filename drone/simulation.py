@@ -143,7 +143,7 @@ class Simulation:
         self.demand_event_list = demand.demand
         latest_event = max(self.demand_event_list)
         if latest_event < 86400:
-            self.demand_event_list.append([event + 86400 for event in self.demand_event_list])
+            self.demand_event_list = self.demand_event_list + [event + 86400 for event in self.demand_event_list]
         self.demand_event_list.sort()
         self.create_optimized_schedule(self.current_time, 0)
 
