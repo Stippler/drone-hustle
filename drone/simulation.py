@@ -149,8 +149,11 @@ class Simulation:
 
     def set_price_profile(self, price_profile):
         with self.lock:
+            while len(price_profile.price) < config.slot_count*config.resolution / price_profile.resolution_s:
+                price_profile.price = price_profile.price + price_profile.price
+            if len(price_profile.price) > config.slot_count*config.resolution / price_profile.resolution_s:
+                price_profile.price = price_profile.price[:int(config.slot_count*config.resolution / price_profile.resolution_s)]
             price_profile = convert_price_profile(price_profile)
-            price_profile = np.repeat(price_profile, int(config.slot_count / len(price_profile)))
             self.price_profile = price_profile
         self.create_optimized_schedule(self.current_time, 0)
 
