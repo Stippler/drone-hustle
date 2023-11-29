@@ -1,6 +1,9 @@
+import json
 from typing import Callable, List
 from threading import Lock
 from time import time, sleep
+
+import requests
 
 from drone.battery import Battery
 import drone.config as config
@@ -77,7 +80,8 @@ class Simulation:
         self.charging_batteries: List[Battery] = []
         self.finished_batteries: List[Battery] = []
 
-        self.requests = {}
+        self.battery_requests = {}
+        self.exchange_requests = {}
         self.charger_count = charger_count
 
         self.lock = Lock()
@@ -95,13 +99,13 @@ class Simulation:
             self.waiting_batteries.clear()
             self.charging_batteries.clear()
             self.finished_batteries.clear()
-            self.requests.clear()
+            self.battery_requests.clear()
+            self.exchange_requests.clear()
             self.constraints = np.zeros((1, config.slot_count), dtype=bool)
             self.demand_event_list = [i * 60 * 60 for i in range(24)]
             self.price_profile = np.zeros(config.slot_count, dtype=float)
             self.schedule = Schedule()
             self.id_counter = 0
-
 
     def get_batteries(self):
         with self.lock:
@@ -149,10 +153,11 @@ class Simulation:
 
     def set_price_profile(self, price_profile):
         with self.lock:
-            while len(price_profile.price) < config.slot_count*config.resolution / price_profile.resolution_s:
+            while len(price_profile.price) < config.slot_count * config.resolution / price_profile.resolution_s:
                 price_profile.price = price_profile.price + price_profile.price
-            if len(price_profile.price) > config.slot_count*config.resolution / price_profile.resolution_s:
-                price_profile.price = price_profile.price[:int(config.slot_count*config.resolution / price_profile.resolution_s)]
+            if len(price_profile.price) > config.slot_count * config.resolution / price_profile.resolution_s:
+                price_profile.price = price_profile.price[
+                                      :int(config.slot_count * config.resolution / price_profile.resolution_s)]
             price_profile = convert_price_profile(price_profile)
             self.price_profile = price_profile
         self.create_optimized_schedule(self.current_time, 0)
@@ -175,7 +180,7 @@ class Simulation:
         with self.lock:
             if self.finished_batteries:
                 battery = self.finished_batteries.pop(0)
-                self.requests[request.drone_id] = {
+                self.battery_requests[request.drone_id] = {
                     'charged_battery': battery,
                     'new_battery': Battery(
                         self.id_counter,
@@ -194,7 +199,7 @@ class Simulation:
             self.waiting_batteries.clear()
             self.charging_batteries.clear()
             self.finished_batteries.clear()
-            self.requests.clear()
+            self.battery_requests.clear()
 
     def add_battery(self, battery: Battery):
         with self.lock:
@@ -217,12 +222,40 @@ class Simulation:
             return new_battery
 
     def exchange_battery(self, exchange_request):
+        request = self.battery_requests.pop(exchange_request.drone_id)
+        request['new_battery'].soc = exchange_request.state_of_charge
+        request['response_uri'] = exchange_request.response_uri
+        self.exchange_requests[exchange_request.drone_id] = request
+        return True
+
+    def exchange_completed(self, drone_id):
         with self.lock:
-            request = self.requests.pop(exchange_request.drone_id)
+            request = self.exchange_requests.pop(drone_id)
             new_battery = request['new_battery']
             self.waiting_batteries.append(new_battery)
             self.create_optimized_schedule(self.current_time, 0)
-            return request['charged_battery']
+            new_battery_for_drone = request['charged_battery']
+            response_uri = request['response_uri']
+            
+            message = {
+                "success": True,
+                "id": new_battery_for_drone.id,
+                "soc": new_battery_for_drone.soc,
+                "capacity": new_battery_for_drone.capacity,
+                "max_power": new_battery_for_drone.max_power,
+                "message": "battery exchange completed"
+            }
+            json_message = json.dumps(message)
+
+            # Send the message to the specified REST interface
+            try:
+                response = requests.post(response_uri, data=json_message, headers={'Content-Type': 'application/json'})
+                response.raise_for_status()  # Raise an exception for HTTP errors
+                return True
+            except requests.exceptions.RequestException as e:
+                # Handle the exception (e.g., log the error)
+                print(f"Error sending message to {response_uri}: {e}")
+                return False
 
     def create_optimized_schedule(self, current_time, time_budget):
         # check the most expensive unblocked timeslot and block it until no schedule is feasible
@@ -255,7 +288,7 @@ class Simulation:
                 demand_array[demand_slot_index] += 1
 
         curr_time_index = int(seconds_since_midnight / config.resolution)
-        demand_array = np.array(np.cumsum(demand_array) - len(self.requests) - len(self.finished_batteries))
+        demand_array = np.array(np.cumsum(demand_array) - len(self.battery_requests) - len(self.finished_batteries))
         price_profile = np.concatenate([self.price_profile[curr_time_index:], self.price_profile[:curr_time_index]])
 
         works = self.schedule.update_schedule(
@@ -341,7 +374,7 @@ class Simulation:
         total_batteries = len(self.finished_batteries) + \
                           len(self.waiting_batteries) + \
                           len(self.charging_batteries) + \
-                          len(self.requests)
+                          len(self.battery_requests)
         return total_batteries
 
     def prognose_waiting_batteries(self):
@@ -421,7 +454,7 @@ class Simulation:
                     f'Current time: {timedelta(seconds=self.current_time)}, ' + \
                     f'Waiting Batteries: {len(self.waiting_batteries)}, ' + \
                     f'Finished Batteries: {len(self.finished_batteries)}, ' + \
-                    f'Requests: {len(self.requests)} ' + self.schedule.format_schedule()
+                    f'Requests: {len(self.battery_requests)} ' + self.schedule.format_schedule()
                 if formatted_schedule:
                     logger.info(formatted_schedule)
 

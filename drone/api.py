@@ -92,24 +92,57 @@ class ExchangeRequest(BaseModel):
     drone_id: str = Field(example="drone123")
     state_of_charge: float = Field(
         example=0.5, description="Actual state of charge of the battery.")
+    response_uri: str = Field(example="http://localhost:8000/exchange-test")
 
 
 @app.put("/exchange",
          summary="Battery exchange",
          description="""
-    This endpoint is used to indicate that a battery exchange has occurred.
-    It takes in the ID of the battery that is gone and the ID of the new battery that was received.
+    This endpoint is used to execute a battery exchange once the drone has landed.
+    It takes in the ID of the drone and the actual state of charge of its current battery.
+    Once the battery exchange is finished, a confirmation is sent to the response URI.
     """)
 def exchange_battery(exchange_request: ExchangeRequest):
     battery = simulation.exchange_battery(exchange_request)
     return {
         "success": True,
-        "id": battery.id,
-        "soc": battery.soc,
-        "capacity": battery.capacity,
-        "max_power": battery.max_power,
+        "message": "battery exchange in progress"
+    }
+
+
+class ExchangeCompleted(BaseModel):
+    drone_id: str = Field(example="drone123")
+
+
+@app.put("/exchange-completed",
+         summary="Battery exchange ",
+         description="""
+    This endpoint is used to indicate that a drone's battery has been exchanged successfully.
+    It takes in the ID of the drone.
+    """)
+def exchange_completed(exchange_completed: ExchangeCompleted):
+    success = simulation.exchange_completed(exchange_completed.drone_id)
+    return {
+        "success": success,
         "message": "battery exchange completed"
     }
+
+
+class ExchangeTest(BaseModel):
+    success: bool = Field(example=True)
+    id: int = Field(example=123)
+    soc: float = Field(example=80.5, description="State of charge of the battery.")
+    capacity: float = Field(example=100.0, description="Capacity of the battery.")
+    max_power: float = Field(example=10.0, description="Maximum power of the battery.")
+    message: str = Field(example="battery exchange completed")
+
+
+@app.post("/exchange-test",
+          summary="Receive message about successful battery exchange",
+          description="This endpoint is a test to receive message about successful battery exchange")
+def exchange_test(message: ExchangeTest):
+    exchange_instance = ExchangeTest(**message.dict())
+    print(repr(exchange_instance))
 
 
 class DemandEstimation(BaseModel):
@@ -258,7 +291,8 @@ def visualisation():
         "waiting_battery_prognosis": simulation.prognose_waiting_batteries().tolist(),
         "finished_battery_prognosis": simulation.prognose_finished_batteries().tolist()
     }
-    pending_requests = simulation.requests
+    pending_requests = simulation.battery_requests
+    pending_exchange_requests = simulation.exchange_requests
 
     return {
         "current_time": current_time,
@@ -268,5 +302,6 @@ def visualisation():
         "batteries": batteries,
         "demand_events": demand_list,
         "battery_prognosis": battery_prognosis,
-        "pending_charge_requests": pending_requests
+        "pending_charge_requests": pending_requests,
+        "pending_exchange_requests": pending_exchange_requests
     }
