@@ -130,7 +130,7 @@ def exchange_completed(exchange_completed: ExchangeCompleted):
 
 class ExchangeTest(BaseModel):
     success: bool = Field(example=True)
-    id: int = Field(example=123)
+    drone_id: str = Field(example="drone123")
     soc: float = Field(example=80.5, description="State of charge of the battery.")
     capacity: float = Field(example=100.0, description="Capacity of the battery.")
     max_power: float = Field(example=10.0, description="Maximum power of the battery.")

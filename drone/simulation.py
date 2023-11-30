@@ -239,7 +239,7 @@ class Simulation:
 
             message = {
                 "success": True,
-                "id": new_battery_for_drone.id,
+                "drone_id": drone_id,
                 "soc": new_battery_for_drone.soc,
                 "capacity": new_battery_for_drone.capacity,
                 "max_power": new_battery_for_drone.max_power,
