@@ -236,7 +236,7 @@ class Simulation:
             self.create_optimized_schedule(self.current_time, 0)
             new_battery_for_drone = request['charged_battery']
             response_uri = request['response_uri']
-            
+
             message = {
                 "success": True,
                 "id": new_battery_for_drone.id,

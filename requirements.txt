@@ -6,3 +6,4 @@ uvicorn==0.21.1
 pydantic~=1.10.13
 pygame~=2.5.2
 numpy~=1.24.1
+requests~=2.31.0
