@@ -3,7 +3,7 @@ from datetime import timedelta, datetime
 from drone.simulation import convert_price_profile
 import logging
 import copy
-from typing import List
+from typing import List, Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -92,7 +92,7 @@ class ExchangeRequest(BaseModel):
     drone_id: str = Field(example="drone123")
     state_of_charge: float = Field(
         example=0.5, description="Actual state of charge of the battery.")
-    response_uri: str = Field(example="http://localhost:8000/exchange-test")
+    response_uri: Optional[str] = Field(example="http://localhost:8000/exchange-test")
 
 
 @app.put("/exchange",
