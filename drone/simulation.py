@@ -239,12 +239,13 @@ class Simulation:
                 response_uri = request['response_uri']
 
                 message = {
-                    "success": True,
-                    "drone_id": drone_id,
-                    "soc": new_battery_for_drone.soc,
-                    "capacity": new_battery_for_drone.capacity,
-                    "max_power": new_battery_for_drone.max_power,
-                    "message": "battery exchange completed"
+                    "assetId": drone_id
+                    # "success": True,
+                    # "drone_id": drone_id,
+                    # "soc": new_battery_for_drone.soc,
+                    # "capacity": new_battery_for_drone.capacity,
+                    # "max_power": new_battery_for_drone.max_power,
+                    # "message": "battery exchange completed"
                 }
                 json_message = json.dumps(message)
 
