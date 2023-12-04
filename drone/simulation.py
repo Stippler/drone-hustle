@@ -236,29 +236,29 @@ class Simulation:
             self.waiting_batteries.append(new_battery)
             self.create_optimized_schedule(self.current_time, 0)
             new_battery_for_drone = request['charged_battery']
-            if request.response_uri is not None:
-                response_uri = request['response_uri']
 
-                message = {
-                    "assetId": drone_id
-                    # "success": True,
-                    # "drone_id": drone_id,
-                    # "soc": new_battery_for_drone.soc,
-                    # "capacity": new_battery_for_drone.capacity,
-                    # "max_power": new_battery_for_drone.max_power,
-                    # "message": "battery exchange completed"
-                }
-                json_message = json.dumps(message)
+            response_uri = "https://bexstream-preprod.beyond-vision.pt/api/v1/elevation/batteryExchanged"
 
-                # Send the message to the specified REST interface
-                try:
-                    response = requests.post(response_uri, data=json_message, headers={'Content-Type': 'application/json'})
-                    response.raise_for_status()  # Raise an exception for HTTP errors
-                    return True
-                except requests.exceptions.RequestException as e:
-                    # Handle the exception (e.g., log the error)
-                    print(f"Error sending message to {response_uri}: {e}")
-                    return False
+            message = {
+                "assetId": drone_id
+                # "success": True,
+                # "drone_id": drone_id,
+                # "soc": new_battery_for_drone.soc,
+                # "capacity": new_battery_for_drone.capacity,
+                # "max_power": new_battery_for_drone.max_power,
+                # "message": "battery exchange completed"
+            }
+            json_message = json.dumps(message)
+
+            # Send the message to the specified REST interface
+            try:
+                response = requests.post(response_uri, data=json_message, headers={'Content-Type': 'application/json'})
+                response.raise_for_status()  # Raise an exception for HTTP errors
+                return True
+            except requests.exceptions.RequestException as e:
+                # Handle the exception (e.g., log the error)
+                print(f"Error sending message to {response_uri}: {e}")
+                return False
 
     def create_optimized_schedule(self, current_time, time_budget):
         # check the most expensive unblocked timeslot and block it until no schedule is feasible
