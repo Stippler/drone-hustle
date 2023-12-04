@@ -231,6 +231,7 @@ class Simulation:
     def exchange_completed(self, drone_id):
         with self.lock:
             request = self.exchange_requests.pop(drone_id)
+            print(request)
             new_battery = request['new_battery']
             self.waiting_batteries.append(new_battery)
             self.create_optimized_schedule(self.current_time, 0)
